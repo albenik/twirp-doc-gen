@@ -50,30 +50,32 @@ func (g *Generator) GenerateServiceDocument(service *protogen.Service) error {
 		methodListIems = append(methodListIems, md.LinkToHeader(fmt.Sprintf("POST /%s", mname), mname))
 	}
 
-	modelKeys := make([]string, 0, len(g.messages)+len(g.enums))
-	for k := range g.enums {
-		modelKeys = append(modelKeys, k)
-	}
-	for k := range g.messages {
-		modelKeys = append(modelKeys, k)
-	}
-	sort.Strings(modelKeys)
-
 	g.doc.Append(md.TH3("Methods"))
 	g.doc.Append(md.UL(methodListIems...))
 
-	modelListItems := make([]md.Block, 0, len(modelKeys))
-	for _, k := range modelKeys {
-		var name string
-		if m, ok := g.messages[k]; ok {
-			name = string(m.Desc.Name())
-		} else {
-			name = string(g.enums[k].Desc.Name())
+	modelsCount := len(g.messages) + len(g.enums)
+	modelKeys := make([]string, 0, modelsCount)
+	if modelsCount > 0 {
+		for k := range g.enums {
+			modelKeys = append(modelKeys, k)
 		}
-		modelListItems = append(modelListItems, md.LinkToHeader(name, name))
+		for k := range g.messages {
+			modelKeys = append(modelKeys, k)
+		}
+		sort.Strings(modelKeys)
+		modelListItems := make([]md.Block, 0, len(modelKeys))
+		for _, k := range modelKeys {
+			var name string
+			if m, ok := g.messages[k]; ok {
+				name = string(m.Desc.FullName())
+			} else {
+				name = string(g.enums[k].Desc.FullName())
+			}
+			modelListItems = append(modelListItems, md.LinkToHeader(name, name))
+		}
+		g.doc.Append(md.TH3("Models"))
+		g.doc.Append(md.UL(modelListItems...))
 	}
-	g.doc.Append(md.TH3("Models"))
-	g.doc.Append(md.UL(modelListItems...))
 
 	g.doc.Append(md.Line())
 
@@ -94,59 +96,30 @@ func (g *Generator) GenerateServiceDocument(service *protogen.Service) error {
 
 		g.doc.Append(md.TH4("Request"))
 		g.doc.Append(md.P(md.Code(string(method.Input.Desc.FullName()))))
-		g.doc.Append(md.CodeBlock(fmt.Sprintf("POST /%s/%s\n\n", service.Desc.FullName(), method.Desc.Name())+
-			messageJSONString(method.Input.Desc), "json"))
-		if err := g.printMessageInfo(method.Input); err != nil {
-			return err
-		}
+		g.doc.Append(md.CodeBlock(fmt.Sprintf("POST /%s/%s\n\n", service.Desc.FullName(),
+			method.Desc.Name())+messageJSONString(method.Input.Desc), "json"))
+		g.printMessageFields(method.Input)
 
 		g.doc.Append(md.TH4("Response"))
 		g.doc.Append(md.P(md.Code(string(method.Output.Desc.FullName()))))
 		g.doc.Append(md.CodeBlock("HTTP 200 OK\n\n"+messageJSONString(method.Output.Desc), "json"))
-		if err := g.printMessageInfo(method.Output); err != nil {
-			return err
-		}
+		g.printMessageFields(method.Output)
 	}
 
-	g.doc.Append(md.TH2("Models"))
+	if modelsCount > 0 {
+		g.doc.Append(md.TH2("Models"))
 
-	for _, k := range modelKeys {
-		if m, ok := g.messages[k]; ok {
-			g.doc.Append(md.TH3(string(m.Desc.Name())))
-			g.doc.Append(md.P(md.Code(string(m.Desc.FullName()))))
-			if err := g.printMessageInfo(m); err != nil {
-				return err
-			}
-			continue
-		}
-
-		e := g.enums[k]
-		g.doc.Append(md.TH3(string(e.Desc.Name())))
-		g.doc.Append(md.P(md.Code(string(e.Desc.FullName()))))
-
-		table := new(md.Table)
-		table.AddColumn("Value", md.AlignLeft)
-		table.AddColumn("Description", md.AlignLeft)
-
-		for _, ev := range e.Values {
-			desc1 := descriptionCellText(ev.Comments.Leading)
-			desc2 := descriptionCellText(ev.Comments.Trailing)
-
-			desc := md.T("")
-			if desc1 != nil {
-				if desc2 != nil {
-					desc = md.G(md.CellP(desc1), md.CellP(desc2))
-				} else {
-					desc = desc1
-				}
-			} else if desc2 != nil {
-				desc = desc2
+		for _, k := range modelKeys {
+			if m, ok := g.messages[k]; ok {
+				g.doc.Append(md.TH3(string(m.Desc.FullName())))
+				g.printMessageFields(m)
+				continue
 			}
 
-			table.AppendRow(md.Code(string(ev.Desc.Name())), desc)
+			e := g.enums[k]
+			g.doc.Append(md.TH3(string(e.Desc.FullName())))
+			g.printEnumItems(e)
 		}
-
-		g.doc.Append(table)
 	}
 
 	g.doc.Append(md.TH2("Twirp Errors"))
@@ -160,6 +133,9 @@ func (g *Generator) collectModels(message *protogen.Message) {
 		switch field.Desc.Kind() {
 		case protoreflect.MessageKind:
 			if !field.Desc.IsMap() {
+				if _, ok := protoKnownTypeLabels[field.Message.Desc.FullName()]; ok {
+					break
+				}
 				g.messages[string(field.Message.Desc.FullName())] = field.Message
 			}
 			g.collectModels(field.Message)
@@ -169,7 +145,7 @@ func (g *Generator) collectModels(message *protogen.Message) {
 	}
 }
 
-func (g *Generator) printMessageInfo(message *protogen.Message) error {
+func (g *Generator) printMessageFields(message *protogen.Message) {
 	if desc := descriptionBlock(message.Comments.Leading); desc != nil {
 		g.doc.Append(desc)
 	}
@@ -180,25 +156,53 @@ func (g *Generator) printMessageInfo(message *protogen.Message) error {
 	t.AddColumn("Description", md.AlignLeft)
 
 	for _, field := range message.Fields {
-		fieldDesc := descriptionCellText(field.Comments.Leading)
-		if fieldDesc == nil {
-			fieldDesc = md.T("")
+		fieldComment := descriptionCellText(field.Comments.Leading)
+		if fieldComment == nil {
+			fieldComment = md.T("")
 		}
 		t.AppendRow(
-			md.Code(string(field.Desc.Name())),
+			md.Code(field.Desc.JSONName()),
 			fieldTypeBlock(field),
-			fieldDesc,
+			fieldComment,
 		)
 	}
 
 	g.doc.Append(t)
+}
 
-	return nil
+func (g *Generator) printEnumItems(enum *protogen.Enum) {
+	if desc := descriptionBlock(enum.Comments.Leading); desc != nil {
+		g.doc.Append(desc)
+	}
+
+	table := new(md.Table)
+	table.AddColumn("Value", md.AlignLeft)
+	table.AddColumn("Description", md.AlignLeft)
+
+	for _, ev := range enum.Values {
+		desc1 := descriptionCellText(ev.Comments.Leading)
+		desc2 := descriptionCellText(ev.Comments.Trailing)
+
+		desc := md.T("")
+		if desc1 != nil {
+			if desc2 != nil {
+				desc = md.G(md.CellP(desc1), md.CellP(desc2))
+			} else {
+				desc = desc1
+			}
+		} else if desc2 != nil {
+			desc = desc2
+		}
+
+		table.AppendRow(md.Code(string(ev.Desc.Name())), desc)
+	}
+
+	g.doc.Append(table)
 }
 
 func messageJSONString(mdesc protoreflect.MessageDescriptor) string {
 	m := dynamicpb.NewMessage(mdesc)
-	fillMessage(m, 0)
+	fillMessageFields(m, 0, 0)
 
 	j := protojson.MarshalOptions{
 		Multiline: true,
@@ -215,7 +219,7 @@ func fieldTypeBlock(field *protogen.Field) md.Block {
 	case protoreflect.MessageKind:
 		msg := field.Message
 
-		if s, ok := protoWellknownTypes[msg.Desc.FullName()]; ok {
+		if s, ok := protoKnownTypeLabels[msg.Desc.FullName()]; ok {
 			block = md.T(s)
 			break
 		}

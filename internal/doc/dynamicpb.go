@@ -2,27 +2,57 @@ package doc
 
 import (
 	"fmt"
+	"time"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/dynamicpb"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-const maxRecurseLevel = 3
+const (
+	maxRecurseLevel = 3
+	listItemsCount  = 3
+)
 
-func fillMessage(m protoreflect.Message, level int) {
+var (
+	anyValues = [listItemsCount]proto.Message{
+		wrapperspb.Int64(12345),
+		wrapperspb.Bool(true),
+		wrapperspb.String("string"),
+	}
+
+	stringValues = [listItemsCount]string{
+		"foo",
+		"bar",
+		"baz",
+	}
+)
+
+func fillMessageFields(msg protoreflect.Message, level, iteration int) {
 	if level > maxRecurseLevel {
 		return
 	}
 
-	fieldDescs := m.Descriptor().Fields()
+	fieldDescs := msg.Descriptor().Fields()
 	for i := 0; i < fieldDescs.Len(); i++ {
 		fd := fieldDescs.Get(i)
+		fk := fd.Kind()
+
 		switch {
 		case fd.IsList():
-			setList(m.Mutable(fd).List(), fd, level)
+			setList(msg.Mutable(fd).List(), fd, level)
+
 		case fd.IsMap():
-			setMap(m.Mutable(fd).Map(), fd, level)
+			setMap(msg.Mutable(fd).Map(), fd, level, iteration)
+
+		case fk == protoreflect.MessageKind || fk == protoreflect.GroupKind:
+			msg.Set(fd, messageValue(fd.Message(), level, iteration))
+
 		default:
-			setScalarField(m, fd, level)
+			msg.Set(fd, scalarValue(fd.Kind(), iteration))
 		}
 	}
 }
@@ -30,46 +60,53 @@ func fillMessage(m protoreflect.Message, level int) {
 func setList(list protoreflect.List, fd protoreflect.FieldDescriptor, level int) {
 	switch fd.Kind() {
 	case protoreflect.MessageKind, protoreflect.GroupKind:
-		for i := 0; i < 3; i++ {
+		for i := 0; i < listItemsCount; i++ {
 			val := list.NewElement()
-			fillMessage(val.Message(), level+1)
+			fillMessageFields(val.Message(), level+1, i)
 			list.Append(val)
 		}
 	default:
-		for i := 0; i < 3; i++ {
-			list.Append(scalarField(fd.Kind()))
+		for i := 0; i < listItemsCount; i++ {
+			list.Append(scalarValue(fd.Kind(), i))
 		}
 	}
 }
 
-func setMap(mmap protoreflect.Map, fd protoreflect.FieldDescriptor, level int) {
+func setMap(pmap protoreflect.Map, fd protoreflect.FieldDescriptor, level, iteration int) {
 	fields := fd.Message().Fields()
 	keyDesc := fields.ByNumber(1)
 	valDesc := fields.ByNumber(2)
 
-	pkey := scalarField(keyDesc.Kind())
+	pkey := scalarValue(keyDesc.Kind(), iteration)
+
 	switch kind := valDesc.Kind(); kind {
 	case protoreflect.MessageKind, protoreflect.GroupKind:
-		val := mmap.NewValue()
-		fillMessage(val.Message(), level+1)
-		mmap.Set(pkey.MapKey(), val)
+		pmap.Set(pkey.MapKey(), messageValue(valDesc.Message(), level, iteration))
 	default:
-		mmap.Set(pkey.MapKey(), scalarField(kind))
+		pmap.Set(pkey.MapKey(), scalarValue(kind, iteration))
 	}
 }
 
-func setScalarField(m protoreflect.Message, fd protoreflect.FieldDescriptor, level int) {
-	switch fd.Kind() {
-	case protoreflect.MessageKind, protoreflect.GroupKind:
-		val := m.NewField(fd)
-		fillMessage(val.Message(), level+1)
-		m.Set(fd, val)
+func messageValue(md protoreflect.MessageDescriptor, level, iteration int) protoreflect.Value {
+	switch md.FullName() {
+	case googleProtobufAny:
+		any, err := anypb.New(anyValues[iteration])
+		if err != nil {
+			panic(err)
+		}
+		return protoreflect.ValueOfMessage(any.ProtoReflect())
+
+	case googleProtobufDuration:
+		return protoreflect.ValueOfMessage(durationpb.New(13 * time.Second).ProtoReflect())
+
 	default:
-		m.Set(fd, scalarField(fd.Kind()))
+		val := protoreflect.ValueOfMessage(dynamicpb.NewMessage(md))
+		fillMessageFields(val.Message(), level+1, 0)
+		return val
 	}
 }
 
-func scalarField(kind protoreflect.Kind) protoreflect.Value {
+func scalarValue(kind protoreflect.Kind, iteration int) protoreflect.Value {
 	switch kind {
 	case protoreflect.BoolKind:
 		return protoreflect.ValueOfBool(true)
@@ -96,7 +133,7 @@ func scalarField(kind protoreflect.Kind) protoreflect.Value {
 		return protoreflect.ValueOfBytes([]byte("bytes"))
 
 	case protoreflect.StringKind:
-		return protoreflect.ValueOfString("string")
+		return protoreflect.ValueOfString(stringValues[iteration])
 
 	case protoreflect.EnumKind:
 		return protoreflect.ValueOfEnum(1)
