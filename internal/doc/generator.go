@@ -96,13 +96,14 @@ func (g *Generator) GenerateServiceDocument(service *protogen.Service) error {
 
 		g.doc.Append(md.TH4("Request"))
 		g.doc.Append(md.P(md.Code(string(method.Input.Desc.FullName()))))
-		g.doc.Append(md.CodeBlock(fmt.Sprintf("POST /%s/%s\n\n", service.Desc.FullName(),
-			method.Desc.Name())+messageJSONString(method.Input.Desc), "json"))
+		g.doc.Append(md.P(md.Code(fmt.Sprintf("POST /%s/%s", service.Desc.FullName(), method.Desc.Name()))))
+		g.doc.Append(md.CodeBlock(messageJSONString(method.Input.Desc), "json"))
 		g.printMessageFields(method.Input)
 
 		g.doc.Append(md.TH4("Response"))
 		g.doc.Append(md.P(md.Code(string(method.Output.Desc.FullName()))))
-		g.doc.Append(md.CodeBlock("HTTP 200 OK\n\n"+messageJSONString(method.Output.Desc), "json"))
+		g.doc.Append(md.P(md.Code("HTTP 200 OK")))
+		g.doc.Append(md.CodeBlock(messageJSONString(method.Output.Desc), "json"))
 		g.printMessageFields(method.Output)
 	}
 
@@ -218,8 +219,9 @@ func fieldTypeBlock(field *protogen.Field) md.Block {
 	switch field.Desc.Kind() {
 	case protoreflect.MessageKind:
 		msg := field.Message
+		name := msg.Desc.FullName()
 
-		if s, ok := protoKnownTypeLabels[msg.Desc.FullName()]; ok {
+		if s, ok := protoKnownTypeLabels[name]; ok {
 			block = md.T(s)
 			break
 		}
@@ -242,7 +244,7 @@ func fieldTypeBlock(field *protogen.Field) md.Block {
 			break
 		}
 
-		block = md.Link(string(msg.Desc.Name()), string(msg.Desc.FullName()))
+		block = md.LinkToHeader(string(name), string(name))
 
 	case protoreflect.EnumKind:
 		enum := field.Desc.Enum()
