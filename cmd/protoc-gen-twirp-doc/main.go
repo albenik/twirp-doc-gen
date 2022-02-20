@@ -3,8 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
-	"os"
 	"path/filepath"
 
 	"google.golang.org/protobuf/compiler/protogen"
@@ -13,9 +11,6 @@ import (
 )
 
 func main() {
-	log.SetFlags(0)
-	log.SetOutput(os.Stderr)
-
 	flags := new(flag.FlagSet)
 	baseURL := flags.String("base_url", "https://api.example.com/twirp", "")
 
@@ -27,8 +22,6 @@ func main() {
 			if !file.Generate {
 				continue
 			}
-
-			log.Println("processing:", file.Desc.Path())
 
 			for _, service := range file.Services {
 				fname := filepath.Join(filepath.Dir(file.GeneratedFilenamePrefix),
