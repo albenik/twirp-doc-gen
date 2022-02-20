@@ -17,8 +17,8 @@ func (emptyBlock) Markdown(io.Writer) error {
 	return nil
 }
 
-// G renders a group of blocks
-type groupBlock []Block
+// G renders a group of blocks.
+type blockGroup []Block
 
 func G(blocks ...Block) Block {
 	if len(blocks) == 0 {
@@ -29,23 +29,28 @@ func G(blocks ...Block) Block {
 		return blocks[0]
 	}
 
-	return groupBlock(blocks)
+	return blockGroup(blocks)
 }
 
-func (b groupBlock) Markdown(w io.Writer) (err error) {
-	suffix := newSuffixCatcher(newline)
+func (g blockGroup) Markdown(w io.Writer) error {
+	suffix := newCatcher(newline)
 	mw := io.MultiWriter(w, suffix)
 
-	for _, bb := range b {
+	for _, block := range g {
+		// if newline was written by the previous block
 		if suffix.Found() {
-			_, err = w.Write(newline)
+			// then write second newline to separate blocks as it required by markdown
+			if _, err := w.Write(newline); err != nil {
+				return err
+			}
 		}
-		if err = bb.Markdown(mw); err != nil {
-			return
+
+		if err := block.Markdown(mw); err != nil {
+			return err
 		}
 	}
 
-	return
+	return nil
 }
 
 type wrapperBlock struct {
@@ -54,7 +59,7 @@ type wrapperBlock struct {
 	Nested Block
 }
 
-// Wrap wraps another block with prefix & suffix
+// Wrap wraps another block with prefix & suffix.
 func Wrap(prefix, suffix []byte, blocks ...Block) Block {
 	return &wrapperBlock{
 		Prefix: prefix,
@@ -83,28 +88,31 @@ func (b *wrapperBlock) Markdown(w io.Writer) error {
 	return nil
 }
 
-type suffixCatcher struct {
-	suffix []byte
+type catcher struct {
+	target []byte
 	buffer []byte
+	buflen int
 }
 
-func newSuffixCatcher(s []byte) *suffixCatcher {
-	return &suffixCatcher{
-		suffix: s,
-		buffer: make([]byte, len(s)),
+func newCatcher(p []byte) *catcher {
+	return &catcher{
+		target: p,
+		buffer: make([]byte, len(p)),
+		buflen: len(p),
 	}
 }
 
-func (c *suffixCatcher) Write(b []byte) (int, error) {
-	if l := len(b); l >= 2 {
-		copy(c.buffer, b[l-2:])
+func (c *catcher) Write(p []byte) (int, error) {
+	if l := len(p); l >= c.buflen {
+		copy(c.buffer, p[l-c.buflen:])
 	} else {
 		copy(c.buffer, c.buffer[l:])
-		copy(c.buffer[len(c.buffer)-1:], b)
+		copy(c.buffer[c.buflen-l:], p)
 	}
-	return len(b), nil
+
+	return len(p), nil
 }
 
-func (c *suffixCatcher) Found() bool {
-	return bytes.Equal(c.buffer, c.suffix)
+func (c *catcher) Found() bool {
+	return bytes.Equal(c.buffer, c.target)
 }

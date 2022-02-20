@@ -1,4 +1,4 @@
-module github.com/albenik-go/twirp-doc-gen
+module github.com/albenik/twirp-doc-gen
 
 go 1.17
 

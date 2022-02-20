@@ -9,7 +9,7 @@ import (
 
 	"google.golang.org/protobuf/compiler/protogen"
 
-	"github.com/albenik-go/twirp-doc-gen/internal/doc"
+	"github.com/albenik/twirp-doc-gen/internal/doc"
 )
 
 func main() {

@@ -9,7 +9,7 @@ Plugin generated one `<RPCServiceName>.md` file per rpc service.
 Installing the generator for protoc or buf.build:
 
 ```
-go install github.com/albenik-go/twirp-doc-gen/cmd/protoc-gen-twirp-doc@latest
+go install github.com/albenik/twirp-doc-gen/cmd/protoc-gen-twirp-doc@latest
 ```
 
 ## Run whith the protoc

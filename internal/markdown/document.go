@@ -5,7 +5,7 @@ import (
 )
 
 type Document struct {
-	root groupBlock
+	root blockGroup
 }
 
 func (d *Document) Append(b ...Block) {

@@ -58,7 +58,7 @@ func fillMessageFields(msg protoreflect.Message, level, iteration int) {
 }
 
 func setList(list protoreflect.List, fd protoreflect.FieldDescriptor, level int) {
-	switch fd.Kind() {
+	switch fd.Kind() { //nolint:exhaustive
 	case protoreflect.MessageKind, protoreflect.GroupKind:
 		for i := 0; i < listItemsCount; i++ {
 			val := list.NewElement()
@@ -79,7 +79,7 @@ func setMap(pmap protoreflect.Map, fd protoreflect.FieldDescriptor, level, itera
 
 	pkey := scalarValue(keyDesc.Kind(), iteration)
 
-	switch kind := valDesc.Kind(); kind {
+	switch kind := valDesc.Kind(); kind { //nolint:exhaustive
 	case protoreflect.MessageKind, protoreflect.GroupKind:
 		pmap.Set(pkey.MapKey(), messageValue(valDesc.Message(), level, iteration))
 	default:
@@ -107,7 +107,7 @@ func messageValue(md protoreflect.MessageDescriptor, level, iteration int) proto
 }
 
 func scalarValue(kind protoreflect.Kind, iteration int) protoreflect.Value {
-	switch kind {
+	switch kind { //nolint:exhaustive
 	case protoreflect.BoolKind:
 		return protoreflect.ValueOfBool(true)
 

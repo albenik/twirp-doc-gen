@@ -22,7 +22,7 @@ var (
 	br          = []byte("<br/>")
 )
 
-// CellP renders a paragraph for table cell
+// CellP renders a paragraph for table cell.
 func CellP(blocks ...Block) Block {
 	return Wrap(nil, br, blocks...)
 }
@@ -56,17 +56,22 @@ func (t *Table) AppendRowT(cols ...string) {
 	t.AppendRow(blocks...)
 }
 
-func (t *Table) Markdown(w io.Writer) error {
+func (t *Table) Markdown(w io.Writer) error { //nolint:funlen,gocognit,gocyclo,cyclop
+	const (
+		minWidth   = 3
+		emptyWidth = 5
+	)
+
 	headers := make([]*tableHeader, len(t.columns))
 	copy(headers, t.columns)
 
 	widths := make([]int, len(t.columns))
 	for i, col := range headers {
-		wd := utf8.RuneCount(col.Title)
-		if wd < 3 {
-			wd = 3
+		colWidth := utf8.RuneCount(col.Title)
+		if colWidth < minWidth {
+			colWidth = minWidth
 		}
-		widths[i] = wd
+		widths[i] = colWidth
 	}
 
 	rows := make([][][]byte, 0, len(t.rows))
@@ -74,8 +79,8 @@ func (t *Table) Markdown(w io.Writer) error {
 		cols := make([][]byte, 0, len(row))
 		for i, col := range row {
 			if i > len(headers) {
-				headers = append(headers, &tableHeader{Title: space})
-				widths = append(widths, 5)
+				headers = append(headers, &tableHeader{Title: space}) //nolint:makezero
+				widths = append(widths, emptyWidth)                   //nolint:makezero
 			}
 
 			buf := bytes.NewBuffer(nil)
@@ -154,7 +159,7 @@ func (t *Table) Markdown(w io.Writer) error {
 				return err
 			}
 		default:
-			if _, err := w.Write(bytes.Repeat(hyphen, widths[i]+2)); err != nil {
+			if _, err := w.Write(bytes.Repeat(hyphen, widths[i]+2)); err != nil { //nolint:gomnd
 				return err
 			}
 		}
@@ -211,7 +216,7 @@ func padLeft(b []byte, w int) []byte {
 
 func center(b []byte, w int) []byte {
 	s := string(b)
-	return []byte(fmt.Sprintf("%*s", -w, fmt.Sprintf("%*s", (w+len(s))/2, s)))
+	return []byte(fmt.Sprintf("%*s", -w, fmt.Sprintf("%*s", (w+len(s))/2, s))) //nolint:gomnd
 }
 
 func right(b []byte, w int) []byte {

@@ -3,10 +3,12 @@ package markdown_test
 import (
 	"testing"
 
-	md "github.com/albenik-go/twirp-doc-gen/internal/markdown"
+	md "github.com/albenik/twirp-doc-gen/internal/markdown"
 )
 
 func TestText_Markdown(t *testing.T) {
+	t.Parallel()
+
 	runTestCases(t, []*testCase{{
 		Name:   "Plain",
 		Block:  md.T("Test OK"),

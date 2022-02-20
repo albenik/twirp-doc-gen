@@ -20,10 +20,17 @@ linters-settings:
     statements: 40
   golint:
     min-confidence: 0.9
+
   gci:
-    local-prefixes: github.com/albenik-go/twirp-openapi-gen
-  goimports:
-    local-prefixes: github.com/albenik-go/twirp-openapi-gen
+    no-inline-comments: true
+    no-prefix-comments: true
+    sections:
+      - standard
+      - default
+      - prefix(github.com/albenik/twirp-doc-gen)
+    section-separators:
+      - newLine
+
   lll:
     line-length: 140
 
@@ -34,12 +41,15 @@ linters:
     - goerr113           # Useful but not in this package!
     - exhaustivestruct # Unecessary annoying!
     - gochecknoglobals # Too paranoic!
+    - goimports        # Latest gci with sections is good enougth
     - golint           # The linter 'golint' is deprecated (since v1.41.0) due to: The repository of the linter has been archived by the owner.  Replaced by revive.
     - interfacer       # The linter 'interfacer' is deprecated (since v1.38.0) due to: The repository of the linter has been archived by the owner.
+    - ireturn          # Yes! Some functions retures interfaces.
     - maligned         # The linter 'maligned' is deprecated (since v1.38.0) due to: The repository of the linter has been archived by the owner.  Replaced by govet 'fieldalignment'.
     - nlreturn         # Personally I hate mandatory blank lines before returns.
     - scopelint        # The linter 'scopelint' is deprecated (since v1.39.0) due to: The repository of the linter has been deprecated by the owner.  Replaced by exportloopref.
-    - wrapcheck        # No need!
+    - varnamelen       # Annoying!
+    - wrapcheck        # Not needed!
     - wsl              # Unecessary annoying!
 
 issues:
@@ -50,6 +60,10 @@ issues:
         - funlen
         - lll
         - wrapcheck
+
+    - path: internal/doc/dynamicpb\.go
+      linters:
+        - gomnd
 
     - text: "Line contains TODO/BUG/FIXME"
       linters:

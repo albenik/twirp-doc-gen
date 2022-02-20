@@ -3,10 +3,12 @@ package markdown_test
 import (
 	"testing"
 
-	md "github.com/albenik-go/twirp-doc-gen/internal/markdown"
+	md "github.com/albenik/twirp-doc-gen/internal/markdown"
 )
 
 func TestRenderTable(t *testing.T) {
+	t.Parallel()
+
 	runTestCases(t, []*testCase{{
 		Name: "SingleColumnNoAlign",
 		Block: func() *md.Table {

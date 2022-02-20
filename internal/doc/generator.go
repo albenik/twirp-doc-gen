@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
-	md "github.com/albenik-go/twirp-doc-gen/internal/markdown"
+	md "github.com/albenik/twirp-doc-gen/internal/markdown"
 )
 
 type Generator struct {
@@ -29,7 +29,7 @@ func NewGenerator(w io.Writer, baseURL string) *Generator {
 	}
 }
 
-func (g *Generator) GenerateServiceDocument(service *protogen.Service) error {
+func (g *Generator) GenerateServiceDocument(service *protogen.Service) error { //nolint:funlen
 	g.messages = make(map[string]*protogen.Message)
 	g.enums = make(map[string]*protogen.Enum)
 
@@ -131,7 +131,7 @@ func (g *Generator) GenerateServiceDocument(service *protogen.Service) error {
 
 func (g *Generator) collectModels(message *protogen.Message) {
 	for _, field := range message.Fields {
-		switch field.Desc.Kind() {
+		switch field.Desc.Kind() { //nolint:exhaustive
 		case protoreflect.MessageKind:
 			if !field.Desc.IsMap() {
 				if _, ok := protoKnownTypeLabels[field.Message.Desc.FullName()]; ok {

@@ -3,10 +3,12 @@ package markdown_test
 import (
 	"testing"
 
-	md "github.com/albenik-go/twirp-doc-gen/internal/markdown"
+	md "github.com/albenik/twirp-doc-gen/internal/markdown"
 )
 
 func TestUL_Markdown(t *testing.T) {
+	t.Parallel()
+
 	runTestCases(t, []*testCase{{
 		Name: "Single",
 		Block: md.UL(
@@ -33,6 +35,8 @@ func TestUL_Markdown(t *testing.T) {
 }
 
 func TestOL_Markdown(t *testing.T) {
+	t.Parallel()
+
 	runTestCases(t, []*testCase{{
 		Name: "Single",
 		Block: md.OL(
